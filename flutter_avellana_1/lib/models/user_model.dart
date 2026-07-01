@@ -15,7 +15,7 @@ class UserModel {
     this.status = 'single',
   });
 
-  // Convierte los datos a un mapa JSON para guardarlos en Firestore
+  // Convierte los datos a JSON para guardarlos en Firestore
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,

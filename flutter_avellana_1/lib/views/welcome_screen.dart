@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_avellana_1/views/login_screen.dart';
 import 'register_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -19,8 +20,18 @@ class WelcomeScreen extends StatelessWidget {
             children: [
               const Spacer(),
 
-              // CONTENEDOR DE LA IMAGEN DE GATITOS
-              // Usamos ClipRRect para que tenga bordes redondeados estéticos
+              Text(
+                'Avellana',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.lightBlue[600],
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 12),
+              
               Center(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
@@ -34,21 +45,10 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 15),
 
-              Text(
-                'Avellana',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.lightBlue[600],
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 12),
 
-              // Subtítulo de tu proyecto de titulación
+              // Subtítulo
               Text(
-                'Separados por un mapa, pero unidos por el corazón.',
+                'Separados por un mapa, unidos por el corazón.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -86,11 +86,12 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Botón Secundario con borde Celeste
+              // Botón secundario para ir al Login
               OutlinedButton(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Próximamente: Inicio de Sesión')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
                   );
                 },
                 style: OutlinedButton.styleFrom(
@@ -101,7 +102,7 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  'Iniciar Sesión',
+                  'Iniciar Sesion',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

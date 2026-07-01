@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'link_couple_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -25,7 +27,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _isLoading = true;
       });
 
-      // Llamamos al servicio que programamos antes
       var user = await _authService.registerWithEmailAndPassword(
         _nameController.text.trim(),
         _emailController.text.trim(),
@@ -37,7 +38,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
 
       if (user != null) {
-        // Alerta de éxito
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('¡Registro exitoso! Cuenta creada y código generado.'),
@@ -45,8 +45,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
 
-        // TODO: Aquí redireccionaremos a la pantalla de vinculación de pareja
+        // Aquí redireccionaremos a la pantalla de vinculación de pareja
         print("Usuario registrado con éxito");
+        if (user != null) {
+          // Obtenemos los datos recién guardados
+          final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          final String generatedCode = userDoc.data()?['couple_code'] ?? '';
+
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => LinkCoupleScreen(
+                  currentUid: user.uid,
+                  myCode: generatedCode,
+                ),
+              ),
+                  (route) => false, // Evita que el usuario regrese al Registro
+            );
+          }
+        }
       } else {
         // Alerta de error
         ScaffoldMessenger.of(context).showSnackBar(
@@ -64,10 +82,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Crear Cuenta Privada'),
+        title: const Text('Creacion de cuenta'),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.pink[400],
+        backgroundColor: Colors.lightBlue[400],
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -78,14 +96,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(Icons.favorite, size: 80, color: Colors.pink[400]),
-                const SizedBox(height: 16),
-                const Text(
-                  'Comienza tu espacio seguro',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/register.png',
+                      height: 175,
+                      width: 175,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
 
                 // Campo de Nombre
                 TextFormField(
@@ -102,7 +124,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
                 // Campo de Correo
                 TextFormField(
@@ -120,7 +142,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
                 // Campo de Contraseña
                 TextFormField(
@@ -146,7 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     : ElevatedButton(
                   onPressed: _handleRegister,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.pink[400],
+                    backgroundColor: Colors.lightBlue[400],
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: const Text(

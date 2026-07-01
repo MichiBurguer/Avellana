@@ -51,4 +51,69 @@ class AuthService {
   Future<void> signOut() async {
     await _auth.signOut();
   }
+  // Vincular con el código de la pareja
+  Future<bool> linkWithCouple(String currentUid, String currentCode, String partnerCode) async {
+    try {
+      if (partnerCode == currentCode) {
+        print("No puedes ingresar tu propio código");
+        return false;
+      }
+
+      // 1. Buscar al usuario que tenga el código ingresado
+      QuerySnapshot partnerQuery = await _db
+          .collection('users')
+          .where('couple_code', isEqualTo: partnerCode)
+          .where('status', isEqualTo: 'single') // Solo si está soltero
+          .get();
+
+      if (partnerQuery.docs.isEmpty) {
+        print("Código inválido o usuario ya vinculado");
+        return false;
+      }
+
+      // Obtener el documento de la pareja
+      DocumentSnapshot partnerDoc = partnerQuery.docs.first;
+      String partnerUid = partnerDoc.id;
+
+      // 2. Crear un ID único para la relación compartida
+      String relationshipId = _db.collection('relationships').doc().id;
+
+      // 3. Crear el documento en la colección 'relationships'
+      await _db.collection('relationships').doc(relationshipId).set({
+        'id': relationshipId,
+        'user_1': currentUid,
+        'user_2': partnerUid,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      // 4. Actualizar el estado de ambos usuarios en Firestore
+      await _db.collection('users').doc(currentUid).update({
+        'status': 'linked',
+        'relationship_id': relationshipId,
+      });
+
+      await _db.collection('users').doc(partnerUid).update({
+        'status': 'linked',
+        'relationship_id': relationshipId,
+      });
+
+      return true;
+    } catch (e) {
+      print('Error al vincular: ${e.toString()}');
+      return false;
+    }
+  }
+  // Iniciar sesión con correo y contraseña
+  Future<User?> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return result.user;
+    } catch (e) {
+      print('Error en el inicio de sesión: ${e.toString()}');
+      return null;
+    }
+  }
 }
