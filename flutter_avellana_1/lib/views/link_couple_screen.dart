@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
+import 'home_screen.dart';
 
 class LinkCoupleScreen extends StatefulWidget {
   final String currentUid;
@@ -65,9 +66,17 @@ class _LinkCoupleScreenState extends State<LinkCoupleScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 20),
-            Icon(Icons.lock_person_rounded, size: 70, color: Colors.lightBlue[400]),
-            const SizedBox(height: 24),
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/linkcouple.png',
+                  height: 175,
+                  width: 175,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
 
             // Sección 1: Tu código
             Card(

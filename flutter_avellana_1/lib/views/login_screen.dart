@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'link_couple_screen.dart';
+import 'home_screen.dart';
+import '../services/permission_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,6 +37,8 @@ class _LoginScreenState extends State<LoginScreen> {
         final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         final String status = userDoc.data()?['status'] ?? 'single';
         final String generatedCode = userDoc.data()?['couple_code'] ?? '';
+        final String relId = userDoc.data()?['relationship_id'] ?? '';
+
 
         setState(() {
           _isLoading = false;
@@ -43,10 +47,21 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           if (status == 'linked') {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('¡Bienvenido de vuelta a tu espacio compartido!'), backgroundColor: Colors.green),
+              const SnackBar(content: Text('¡Bienvenido de vuelta!'), backgroundColor: Colors.green),
+            );
+            await PermissionService().requestNotificationPermission();
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => HomeScreen(
+                  currentUid: user.uid,
+                  relationshipId: relId,
+                ),
+              ),
+                  (route) => false,
             );
           } else {
-            // Si sigue soltero, mandarlo a la pantalla de vinculación
+            // Si sigue soltero, mandarlo a la pantalla de vinculaciónS
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
@@ -108,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Ingresa a tu cuenta privada',
+                  'Ingresa a tu cuenta',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
