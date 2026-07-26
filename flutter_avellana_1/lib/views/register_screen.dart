@@ -45,7 +45,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
 
-        // Aquí redireccionaremos a la pantalla de vinculación de pareja
         print("Usuario registrado con éxito");
         if (user != null) {
           // Obtenemos los datos recién guardados
