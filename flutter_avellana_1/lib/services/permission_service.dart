@@ -2,7 +2,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 class PermissionService {
 
-  // Solicitar permiso de notificaciones de forma explícita
+  // Solicitar permiso de notificaciones
   Future<bool> requestNotificationPermission() async {
     // Comprobamos el estado actual del permiso
     PermissionStatus status = await Permission.notification.status;
@@ -15,12 +15,11 @@ class PermissionService {
     return status.isGranted;
   }
 
-  // Solicitar múltiples permisos juntos (Ideal para la primera vez que abren la app)
+  // Solicitar permisos
   Future<void> requestInitialPerms() async {
     Map<Permission, PermissionStatus> statuses = await [
       Permission.notification,
       Permission.camera,
-      // Usamos storage para versiones antiguas de Android o fotos
       Permission.photos,
     ].request();
 

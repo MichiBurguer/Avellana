@@ -49,7 +49,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('¡Bienvenido de vuelta!'), backgroundColor: Colors.green),
             );
-            await PermissionService().requestNotificationPermission();
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
@@ -61,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   (route) => false,
             );
           } else {
-            // Si sigue soltero, mandarlo a la pantalla de vinculaciónS
+            // Si sigue soltero, mandarlo a la pantalla de vinculación
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(

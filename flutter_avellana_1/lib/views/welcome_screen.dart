@@ -1,10 +1,34 @@
+import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_avellana_1/views/login_screen.dart';
 import 'register_screen.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+
+  @override
+  void initState() {
+    super.initState();
+    // Ejecuta la petición justo después de renderizar el primer frame de la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _solicitarPermisosIniciales();
+    });
+  }
+
+  Future<void> _solicitarPermisosIniciales() async {
+    // Solicitamos los permisos
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.notification,
+      Permission.camera,
+      Permission.photos,
+    ].request();
+  }
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -59,7 +83,7 @@ class WelcomeScreen extends StatelessWidget {
 
               const Spacer(),
 
-              // Botón Principal Celeste
+              // Botón Principal
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
@@ -86,7 +110,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Botón secundario para ir al Login
+              // Boton para ir al Login
               OutlinedButton(
                 onPressed: () {
                   Navigator.push(

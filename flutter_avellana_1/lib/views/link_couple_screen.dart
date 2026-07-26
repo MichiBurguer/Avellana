@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
 
@@ -22,33 +23,66 @@ class _LinkCoupleScreenState extends State<LinkCoupleScreen> {
   final TextEditingController _codeController = TextEditingController();
   bool _isLoading = false;
 
-  void _handleLink() async {
-    String inputCode = _codeController.text.trim().toUpperCase();
+  @override
+  void dispose() {
+    // Liberamos la memoria del controlador
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLink() async {
+    final String inputCode = _codeController.text.trim().toUpperCase();
     if (inputCode.isEmpty) return;
 
     setState(() {
       _isLoading = true;
     });
 
-    bool success = await _authService.linkWithCouple(
-      widget.currentUid,
-      widget.myCode,
-      inputCode,
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('¡Conexión establecida con éxito! Bienvenidos.'), backgroundColor: Colors.green),
+    try {
+      final String? relId = await _authService.linkWithCouple(
+        widget.currentUid,
+        widget.myCode,
+        inputCode,
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Código incorrecto o pareja ya vinculada.'), backgroundColor: Colors.red),
+
+      if (!mounted) return;
+
+      if (relId == null) {
+        setState(() => _isLoading = false);
+        _showSnackBar('Codigo incorrecto o pareja ya vinculada.', Colors.red);
+        return;
+      }
+
+      setState(() => _isLoading = false);
+      _showSnackBar('¡Conexión establecida con éxito! Bienvenidos.', Colors.green);
+
+      // 2. Redirigimos al HomeScreen
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomeScreen(
+            currentUid: widget.currentUid,
+            relationshipId: relId,
+          ),
+        ),
+            (route) => false,
       );
+    } catch (e) {
+      debugPrint("Error durante la vinculación: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnackBar('Error al cargar el espacio compartido.', Colors.red);
+      }
     }
+  }
+
+  void _showSnackBar(String message, Color backgroundColor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: backgroundColor,
+      ),
+    );
   }
 
   @override
@@ -77,21 +111,27 @@ class _LinkCoupleScreenState extends State<LinkCoupleScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
 
-            // Sección 1: Tu código
+            // Sección: Tu código
             Card(
               color: Colors.lightBlue[50],
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
                   children: [
                     const Text(
                       'Comparte tu código único con tu pareja:',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -107,9 +147,12 @@ class _LinkCoupleScreenState extends State<LinkCoupleScreen> {
                         IconButton(
                           icon: const Icon(Icons.copy, color: Colors.grey),
                           onPressed: () {
-                            Clipboard.setData(ClipboardData(text: widget.myCode));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Código copiado al portapapeles')),
+                            Clipboard.setData(
+                              ClipboardData(text: widget.myCode),
+                            );
+                            _showSnackBar(
+                              'Código copiado al portapapeles',
+                              Colors.black87,
                             );
                           },
                         )
@@ -120,7 +163,7 @@ class _LinkCoupleScreenState extends State<LinkCoupleScreen> {
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 18),
             const Text(
               'O ingresa el código de tu pareja:',
               textAlign: TextAlign.center,
@@ -149,11 +192,17 @@ class _LinkCoupleScreenState extends State<LinkCoupleScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.lightBlue[400],
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: const Text(
                 'Vincular Pareja',
-                style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],

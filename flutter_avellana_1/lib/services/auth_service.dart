@@ -7,11 +7,11 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Función para generar un código único de pareja (Ej: KEV-4829)
+  // Función para generar un código único de pareja
   String _generateCoupleCode(String name) {
     final random = Random();
     String prefix = name.length >= 3 ? name.substring(0, 3).toUpperCase() : 'APP';
-    int number = 1000 + random.nextInt(9000); // Número de 4 dígitos
+    int number = 1000 + random.nextInt(9000);
     return '$prefix-$number';
   }
 
@@ -52,33 +52,35 @@ class AuthService {
     await _auth.signOut();
   }
   // Vincular con el código de la pareja
-  Future<bool> linkWithCouple(String currentUid, String currentCode, String partnerCode) async {
+  Future<String?> linkWithCouple(String currentUid, String currentCode, String partnerCode) async {
     try {
-      if (partnerCode == currentCode) {
-        print("No puedes ingresar tu propio código");
-        return false;
-      }
+      if (partnerCode == currentCode) return null;
 
-      // 1. Buscar al usuario que tenga el código ingresado
+      // 1. Buscar pareja
       QuerySnapshot partnerQuery = await _db
           .collection('users')
           .where('couple_code', isEqualTo: partnerCode)
-          .where('status', isEqualTo: 'single') // Solo si está soltero
           .get();
 
       if (partnerQuery.docs.isEmpty) {
-        print("Código inválido o usuario ya vinculado");
-        return false;
+        partnerQuery = await _db
+            .collection('users')
+            .where('coupleCode', isEqualTo: partnerCode)
+            .get();
       }
+
+      if (partnerQuery.docs.isEmpty) return null;
 
       // Obtener el documento de la pareja
       DocumentSnapshot partnerDoc = partnerQuery.docs.first;
-      String partnerUid = partnerDoc.id;
+      Map<String, dynamic> partnerData = partnerDoc.data() as Map<String, dynamic>;
+      if (partnerData['status'] == 'linked') return null;
 
-      // 2. Crear un ID único para la relación compartida
+      String partnerUid = partnerDoc.id;
       String relationshipId = _db.collection('relationships').doc().id;
 
-      // 3. Crear el documento en la colección 'relationships'
+
+      // Crear el documento en la colección 'relationships'
       await _db.collection('relationships').doc(relationshipId).set({
         'id': relationshipId,
         'user_1': currentUid,
@@ -86,7 +88,7 @@ class AuthService {
         'created_at': DateTime.now().toIso8601String(),
       });
 
-      // 4. Actualizar el estado de ambos usuarios en Firestore
+      // Actualizar el estado de ambos usuarios en Firestore
       await _db.collection('users').doc(currentUid).update({
         'status': 'linked',
         'relationship_id': relationshipId,
@@ -97,10 +99,10 @@ class AuthService {
         'relationship_id': relationshipId,
       });
 
-      return true;
+      return relationshipId;
     } catch (e) {
-      print('Error al vincular: ${e.toString()}');
-      return false;
+      print('Error al vincular: $e');
+      return null;
     }
   }
   // Iniciar sesión con correo y contraseña
@@ -115,5 +117,31 @@ class AuthService {
       print('Error en el inicio de sesión: ${e.toString()}');
       return null;
     }
+  }
+  // Chat
+
+// mensajes en tiempo real ordenados por fecha
+  Stream<QuerySnapshot> getMessagesStream(String relationshipId) {
+    return _db
+        .collection('relationships')
+        .doc(relationshipId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
+// Enviar un mensaje
+  Future<void> sendMessage(String relationshipId, String senderId, String text) async {
+    if (text.trim().isEmpty) return;
+
+    await _db
+        .collection('relationships')
+        .doc(relationshipId)
+        .collection('messages')
+        .add({
+      'sender_id': senderId,
+      'text': text.trim(),
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 }
