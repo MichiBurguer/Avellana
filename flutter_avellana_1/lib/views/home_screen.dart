@@ -1,10 +1,13 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:home_widget/home_widget.dart';
-import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../services/auth_service.dart';
 import 'welcome_screen.dart';
 import 'chat_screen.dart';
+import 'mood_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String currentUid;
@@ -22,29 +25,43 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
-  int _currentIndex = 0; // Controla qué pestaña está activa
+  final TextEditingController _taskController = TextEditingController();
+  int _currentIndex = 0;
 
-  // Lista de títulos para el AppBar según la pestaña activa
   final List<String> _titles = [
     'Nuestro Espacio',
     'Mensajes Privados',
+    'Estado de Ánimo',
     'Galería Compartida',
   ];
 
   @override
-  Widget build(BuildContext context) {
-    // Definimos las pantallas
-    final List<Widget> _screens = [
-      // Pestaña 0: Inicio/Muro
-      _buildMuroPrincipal(),
+  void dispose() {
+    _taskController.dispose();
+    super.dispose();
+  }
 
-      // Pestaña 1: Chat en tiempo real
+  void _handleAddTask() {
+    final title = _taskController.text;
+    if (title.trim().isNotEmpty) {
+      _authService.addTask(widget.relationshipId, widget.currentUid, title);
+      _taskController.clear();
+      FocusScope.of(context).unfocus(); // Cierra el teclado
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> _screens = [
+      _buildMuroPrincipal(),
       ChatScreen(
         currentUid: widget.currentUid,
         relationshipId: widget.relationshipId,
       ),
-
-      // Pestaña 2: Galería
+      MoodScreen(
+        currentUid: widget.currentUid,
+        relationshipId: widget.relationshipId,
+      ),
       _buildModuloWidgetFotos(),
     ];
 
@@ -72,11 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
-      // Muestra la pantalla activa
       body: _screens[_currentIndex],
-
-      // BARRA DE NAVEGACIÓN INFERIOR
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -86,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         selectedItemColor: Colors.lightBlue[600],
         unselectedItemColor: Colors.grey[400],
+        type: BottomNavigationBarType.fixed,
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(
@@ -97,6 +111,10 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Chat',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.favorite_rounded),
+            label: 'Ánimo',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.photo_library_rounded),
             label: 'Fotos',
           ),
@@ -104,6 +122,181 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // --- MURO PRINCIPAL CON METAS/TAREAS COMPARTIDAS ---
+  Widget _buildMuroPrincipal() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Banner de bienvenida
+          Center(
+            child: CircleAvatar(
+              radius: 45,
+              backgroundColor: Colors.lightBlue[50],
+              child: Icon(
+                Icons.pets,
+                size: 50,
+                color: Colors.lightBlue[400],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '¡Bienvenidos!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // SECCIÓN: Tarjeta de Tareas/Metas Compartidas
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.check_circle_rounded, color: Colors.lightBlue[400]),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Metas y Tareas Compartidas',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Input rápido para crear nueva meta
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _taskController,
+                          decoration: InputDecoration(
+                            hintText: 'Añadir nueva tarea o meta...',
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onSubmitted: (_) => _handleAddTask(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle, color: Colors.lightBlue),
+                        iconSize: 32,
+                        onPressed: _handleAddTask,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Stream de Tareas desde Firestore
+                  StreamBuilder<QuerySnapshot>(
+                    stream: _authService.getTasksStream(widget.relationshipId),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return const Text('Error al cargar tareas.');
+                      }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      final docs = snapshot.data?.docs ?? [];
+
+                      if (docs.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16.0),
+                          child: Center(
+                            child: Text(
+                              '¡No hay metas pendientes!\nAñadan una tarea arriba para empezar.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey, fontSize: 13),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: docs.length,
+                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final doc = docs[index];
+                          final data = doc.data() as Map<String, dynamic>;
+                          final bool isCompleted = data['is_completed'] ?? false;
+                          final String title = data['title'] ?? '';
+
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: Checkbox(
+                              value: isCompleted,
+                              activeColor: Colors.lightBlue[400],
+                              onChanged: (bool? value) {
+                                _authService.toggleTaskStatus(
+                                  widget.relationshipId,
+                                  doc.id,
+                                  isCompleted,
+                                );
+                              },
+                            ),
+                            title: Text(
+                              title,
+                              style: TextStyle(
+                                decoration: isCompleted
+                                    ? TextDecoration.lineThrough
+                                    : TextDecoration.none,
+                                color: isCompleted ? Colors.grey : Colors.black87,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 20, color: Colors.grey),
+                              onPressed: () {
+                                _authService.deleteTask(widget.relationshipId, doc.id);
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- MÓDULO WIDGET FOTOS ---
   Widget _buildModuloWidgetFotos() {
     return Center(
       child: Padding(
@@ -140,20 +333,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-// Función para abrir la galería y mandársela al widget
   Future<void> _seleccionarYEnviarImagen() async {
     final ImagePicker picker = ImagePicker();
 
-    // Abrimos la galería nativa
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 80,
     );
 
     if (image != null) {
-      //Guardamos la ruta de la foto para el Widget
       await HomeWidget.saveWidgetData<String>('imagePath', image.path);
-
 
       await HomeWidget.updateWidget(
         name: 'AppWidgetProvider',
@@ -169,70 +358,5 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
-  }
-  // primera pestaña (Inicio)
-  Widget _buildMuroPrincipal() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: Colors.lightBlue[50],
-              child: Icon(
-                Icons.pets,
-                size: 65,
-                color: Colors.lightBlue[400],
-              ),
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              '¡Bienvenidos!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Utiliza la barra inferior para navegar entre el chat y tus otras actividades.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // Boton para ir al Chat
-            ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _currentIndex = 1; // Cambia a la pestaña de Chat
-                });
-              },
-              icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white),
-              label: const Text(
-                'Abrir Chat',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.lightBlue[400],
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

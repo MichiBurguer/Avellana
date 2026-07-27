@@ -144,4 +144,85 @@ class AuthService {
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
+  // Etados de animo
+
+// Guardar un nuevo estado de ánimo
+  Future<void> logMood({
+    required String relationshipId,
+    required String userId,
+    required String emoji,
+    required String label,
+    String? note,
+  }) async {
+    await _db
+        .collection('relationships')
+        .doc(relationshipId)
+        .collection('mood_logs')
+        .add({
+      'user_id': userId,
+      'emoji': emoji,
+      'label': label,
+      'note': note ?? '',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+// Escuchar los estados de ánimo
+  Stream<QuerySnapshot> getMoodLogsStream(String relationshipId) {
+    return _db
+        .collection('relationships')
+        .doc(relationshipId)
+        .collection('mood_logs')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+  // Tareas y metas compartidas
+
+// 1. Crear una nueva tarea
+  Future<void> addTask(String relationshipId, String userId, String title) async {
+    if (title.trim().isEmpty) return;
+
+    await _db
+        .collection('relationships')
+        .doc(relationshipId)
+        .collection('tasks')
+        .add({
+      'title': title.trim(),
+      'is_completed': false,
+      'created_by': userId,
+      'created_at': FieldValue.serverTimestamp(),
+    });
+  }
+
+// 2. Cambiar estado de la tarea (completada / pendiente)
+  Future<void> toggleTaskStatus(String relationshipId, String taskId, bool currentStatus) async {
+    await _db
+        .collection('relationships')
+        .doc(relationshipId)
+        .collection('tasks')
+        .doc(taskId)
+        .update({
+      'is_completed': !currentStatus,
+    });
+  }
+
+// 3. Eliminar tarea
+  Future<void> deleteTask(String relationshipId, String taskId) async {
+    await _db
+        .collection('relationships')
+        .doc(relationshipId)
+        .collection('tasks')
+        .doc(taskId)
+        .delete();
+  }
+
+// 4. Escuchar tareas en tiempo real
+  Stream<QuerySnapshot> getTasksStream(String relationshipId) {
+    return _db
+        .collection('relationships')
+        .doc(relationshipId)
+        .collection('tasks')
+        .orderBy('created_at', descending: true)
+        .snapshots();
+  }
 }
