@@ -2,7 +2,14 @@ import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:home_widget/home_widget.dart';
+import 'dart:convert';
 
+const String _imgBbApiKey = 'd5835e62364dabbcded49ad1b7fb220e';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -178,7 +185,7 @@ class AuthService {
   }
   // Tareas y metas compartidas
 
-// 1. Crear una nueva tarea
+// Crear una nueva tarea
   Future<void> addTask(String relationshipId, String userId, String title) async {
     if (title.trim().isEmpty) return;
 
@@ -194,7 +201,7 @@ class AuthService {
     });
   }
 
-// 2. Cambiar estado de la tarea (completada / pendiente)
+// Cambiar estado de la tarea (completada / pendiente)
   Future<void> toggleTaskStatus(String relationshipId, String taskId, bool currentStatus) async {
     await _db
         .collection('relationships')
@@ -206,7 +213,7 @@ class AuthService {
     });
   }
 
-// 3. Eliminar tarea
+// Eliminar tarea
   Future<void> deleteTask(String relationshipId, String taskId) async {
     await _db
         .collection('relationships')
@@ -216,7 +223,7 @@ class AuthService {
         .delete();
   }
 
-// 4. Escuchar tareas en tiempo real
+// Escuchar tareas en tiempo real
   Stream<QuerySnapshot> getTasksStream(String relationshipId) {
     return _db
         .collection('relationships')
@@ -224,5 +231,85 @@ class AuthService {
         .collection('tasks')
         .orderBy('created_at', descending: true)
         .snapshots();
+
+// Widget de la pareja
+  }
+  Future<bool> uploadWidgetPhoto(String relationshipId, File imageFile) async {
+    try {
+
+      // convertimos la imagen local a Base64
+      List<int> imageBytes = await imageFile.readAsBytes();
+      String base64Image = base64Encode(imageBytes);
+
+      // petición POST a la API de ImgBB
+      var response = await http.post(
+        Uri.parse('https://api.imgbb.com/1/upload'),
+        body: {
+          'key': _imgBbApiKey,
+          'image': base64Image,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        var jsonResponse = jsonDecode(response.body);
+        String downloadUrl = jsonResponse['data']['url'];
+
+
+        // guardar url de la imagen firestore
+        await _db.collection('relationships').doc(relationshipId).update({
+          'widget_photo_url': downloadUrl,
+          'widget_updated_at': FieldValue.serverTimestamp(),
+        });
+
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e, stack) {
+      return false;
+    }
+  }
+  void listenAndSyncCoupleWidget(String relationshipId) {
+    _db.collection('relationships').doc(relationshipId).snapshots().listen((snapshot) async {
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data();
+      final String? photoUrl = data?['widget_photo_url'];
+
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        await _downloadAndSetWidgetImage(photoUrl);
+      }
+    });
+  }
+
+  // Descarga y actualiza el widget
+  Future<void> _downloadAndSetWidgetImage(String url) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final directory = await getTemporaryDirectory();
+
+        // Nombre de archivo
+        final String fileName = 'partner_widget_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final filePath = '${directory.path}/$fileName';
+        final file = File(filePath);
+
+        await file.writeAsBytes(response.bodyBytes);
+
+        await HomeWidget.saveWidgetData<String>('imagePath', null);
+
+        await HomeWidget.saveWidgetData<String>('imagePath', file.path);
+
+        await HomeWidget.updateWidget(
+          name: 'AppWidgetProvider',
+          androidName: 'AppWidgetProvider',
+          qualifiedAndroidName: 'com.example.flutter_avellana_1.AppWidgetProvider',
+        );
+
+        print('¡Widget de Android notificado con la nueva foto!');
+      }
+    } catch (e) {
+      print('Error al actualizar el Widget: $e');
+    }
   }
 }

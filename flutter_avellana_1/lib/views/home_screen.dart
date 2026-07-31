@@ -123,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- MURO PRINCIPAL CON METAS/TAREAS COMPARTIDAS ---
+  // MURO PRINCIPAL CON METAS/TAREAS COMPARTIDAS
   Widget _buildMuroPrincipal() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
@@ -296,7 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- MÓDULO WIDGET FOTOS ---
+  // Modulo widget de fotos compartidas
   Widget _buildModuloWidgetFotos() {
     return Center(
       child: Padding(
@@ -312,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Selecciona una foto de tu galería y aparecerá directamente en la pantalla de inicio de su teléfono.',
+              'Selecciona una foto de tu galería y aparecerá directamente en el widget de su teléfono.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
@@ -334,28 +334,46 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _seleccionarYEnviarImagen() async {
-    final ImagePicker picker = ImagePicker();
+  final ImagePicker picker = ImagePicker();
 
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
+  final XFile? image = await picker.pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 70, // Reducimos un poco el tamaño
+  );
+
+  if (image != null) {
+    File imageFile = File(image.path);
+    // diálogo de carga
+    if (!await imageFile.exists()) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Enviando foto...'),
+      ),
     );
 
-    if (image != null) {
-      await HomeWidget.saveWidgetData<String>('imagePath', image.path);
+    bool success = await _authService.uploadWidgetPhoto(
+      widget.relationshipId,
+      imageFile,
+    );
 
-      await HomeWidget.updateWidget(
-        name: 'AppWidgetProvider',
-        androidName: 'AppWidgetProvider',
-      );
-
-      if (mounted) {
+    if (mounted) {
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('¡Foto enviada al Widget con éxito!'),
+            content: Text('¡Foto enviada con éxito!'),
             backgroundColor: Colors.green,
           ),
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al enviar la imagen. Inténtalo de nuevo.'),
+            backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
