@@ -38,6 +38,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   firebase_core: ^4.11.0
   firebase_auth: ^6.5.4
+  firebase_messaging: ^16.4.3
+  flutter_local_notifications: ^17.0.0
   cloud_firestore: ^6.6.0
   permission_handler: ^11.3.1
   firebase_storage: ^13.4.5
@@ -70,6 +72,7 @@ flutter:
     - assets/login.png
     - assets/home.png
     - assets/linkcouple.png
+    - assets/home_screen.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
